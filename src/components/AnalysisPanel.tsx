@@ -9,10 +9,13 @@ import {
   MapPin,
   Stethoscope,
   Clock,
-  FileQuestion
+  FileQuestion,
+  ImageOff,
+  Upload
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface AnalysisPanelProps {
   analysis: AnalysisResult | null;
@@ -112,6 +115,71 @@ export function AnalysisPanel({ analysis, isAnalyzing }: AnalysisPanelProps) {
           <h3 className="text-foreground font-medium mb-2">No Analysis Yet</h3>
           <p className="text-sm text-muted-foreground max-w-xs">
             Upload a medical scan image to begin AI-powered analysis
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // FAIL CONDITION: Poor image quality
+  if (analysis.isPoorQualityFailure) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div className="medical-card border-destructive/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+              <ImageOff className="w-4 h-4 text-destructive" />
+              Analysis Failed
+            </h3>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              {analysis.analysisTimestamp.toLocaleTimeString()}
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 mb-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-6 h-6 text-destructive flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-destructive">Image Quality Poor — Diagnosis Uncertain</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The uploaded image appears to be a photo of a screen or film with insufficient quality for reliable analysis.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg bg-secondary border border-border">
+            <p className="text-sm font-medium text-foreground mb-3">To proceed with analysis, please provide:</p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold">1.</span>
+                <span><strong>DICOM file</strong> — Original digital imaging format from the scanner</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold">2.</span>
+                <span><strong>High-resolution export</strong> — Direct export from PACS system (PNG/JPEG, min 1024px)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold">3.</span>
+                <span><strong>Digital capture</strong> — If photographing, ensure even lighting, no glare, and maximum resolution</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Button variant="medical" className="flex-1 gap-2">
+              <Upload className="w-4 h-4" />
+              Upload Higher Quality Image
+            </Button>
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="p-4 rounded-lg bg-muted border border-border">
+          <p className="text-xs text-muted-foreground text-center">
+            ⚕️ This AI output is for clinical assistance only and must be reviewed by a certified medical professional. 
+            This tool does not provide final diagnosis.
           </p>
         </div>
       </div>
