@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AnalysisResult, ScanType, ImageQuality, FindingStatus, HighlightedRegion } from '@/types/medical';
+import { AnalysisResult, ScanType, ImageQuality, FindingStatus, HighlightedRegion, DifferentialDiagnosis } from '@/types/medical';
 
 // Simulated AI analysis - in production, this would use actual ML models
 // For a real implementation, you would integrate with TensorFlow.js or ONNX models
@@ -110,6 +110,146 @@ function generateConditions(scanType: ScanType, hasAbnormalities: boolean) {
   }));
 }
 
+function generateDifferentialDiagnoses(scanType: ScanType): DifferentialDiagnosis[] {
+  const differentialsByType: Record<ScanType, DifferentialDiagnosis[]> = {
+    'X-ray': [
+      {
+        name: 'Pneumonia',
+        confidence: 35 + Math.floor(Math.random() * 25),
+        evidence: [
+          'Patchy opacification in lung fields',
+          'Air bronchograms possibly present',
+          'Consolidation pattern observed'
+        ]
+      },
+      {
+        name: 'Pulmonary Fibrosis',
+        confidence: 25 + Math.floor(Math.random() * 20),
+        evidence: [
+          'Reticular pattern in lower lung zones',
+          'Reduced lung volume',
+          'Honeycombing appearance uncertain'
+        ]
+      },
+      {
+        name: 'Atelectasis',
+        confidence: 20 + Math.floor(Math.random() * 20),
+        evidence: [
+          'Linear opacity suggesting collapsed segment',
+          'Shift of adjacent structures',
+          'Volume loss in affected region'
+        ]
+      }
+    ],
+    'MRI': [
+      {
+        name: 'Demyelinating Disease',
+        confidence: 35 + Math.floor(Math.random() * 25),
+        evidence: [
+          'Periventricular hyperintensities',
+          'Ovoid lesions perpendicular to ventricles',
+          'Multiple white matter foci'
+        ]
+      },
+      {
+        name: 'Small Vessel Disease',
+        confidence: 30 + Math.floor(Math.random() * 20),
+        evidence: [
+          'Subcortical white matter changes',
+          'Lacunar infarcts possible',
+          'Age-related changes pattern'
+        ]
+      },
+      {
+        name: 'Low-Grade Glioma',
+        confidence: 20 + Math.floor(Math.random() * 15),
+        evidence: [
+          'Subtle signal abnormality',
+          'No definite mass effect',
+          'Further imaging recommended'
+        ]
+      }
+    ],
+    'CT': [
+      {
+        name: 'Hepatic Hemangioma',
+        confidence: 35 + Math.floor(Math.random() * 25),
+        evidence: [
+          'Well-defined hypodense lesion',
+          'Peripheral nodular enhancement pattern',
+          'No aggressive features'
+        ]
+      },
+      {
+        name: 'Focal Nodular Hyperplasia',
+        confidence: 28 + Math.floor(Math.random() * 20),
+        evidence: [
+          'Central scar appearance',
+          'Arterial phase enhancement',
+          'Isodense on delayed images'
+        ]
+      },
+      {
+        name: 'Metastatic Disease',
+        confidence: 22 + Math.floor(Math.random() * 18),
+        evidence: [
+          'Multiple lesions of varying size',
+          'Clinical correlation required',
+          'Primary source unknown'
+        ]
+      }
+    ],
+    'Ultrasound': [
+      {
+        name: 'Simple Cyst',
+        confidence: 40 + Math.floor(Math.random() * 25),
+        evidence: [
+          'Anechoic content',
+          'Posterior acoustic enhancement',
+          'Smooth thin wall'
+        ]
+      },
+      {
+        name: 'Complex Cyst',
+        confidence: 30 + Math.floor(Math.random() * 20),
+        evidence: [
+          'Internal septations',
+          'Debris or hemorrhage possible',
+          'Follow-up recommended'
+        ]
+      },
+      {
+        name: 'Solid Mass',
+        confidence: 20 + Math.floor(Math.random() * 15),
+        evidence: [
+          'Hypoechoic lesion',
+          'Internal vascularity uncertain',
+          'Tissue characterization limited'
+        ]
+      }
+    ],
+    'Unknown': [
+      {
+        name: 'Pathology A',
+        confidence: 30,
+        evidence: ['Abnormal pattern detected', 'Further investigation needed']
+      },
+      {
+        name: 'Pathology B',
+        confidence: 25,
+        evidence: ['Secondary findings present', 'Clinical correlation advised']
+      },
+      {
+        name: 'Pathology C',
+        confidence: 20,
+        evidence: ['Non-specific changes', 'Cannot exclude significance']
+      }
+    ]
+  };
+
+  return differentialsByType[scanType] || differentialsByType['Unknown'];
+}
+
 export function useImageAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -140,23 +280,48 @@ export function useImageAnalysis() {
         setTimeout(() => {
           const scanType = detectScanType(imageData);
           const imageQuality = assessImageQuality(imageData);
-          const hasAbnormalities = Math.random() > 0.4; // 60% chance of finding something
           
+          // Determine finding status: 40% normal, 35% abnormal (confident), 25% uncertain
+          const randomValue = Math.random();
+          let status: FindingStatus;
+          let isUncertain = false;
+          
+          if (randomValue < 0.4) {
+            status = 'Normal';
+          } else if (randomValue < 0.75) {
+            status = 'Abnormal';
+          } else {
+            status = 'Uncertain';
+            isUncertain = true;
+          }
+          
+          const hasAbnormalities = status === 'Abnormal';
           const regions = hasAbnormalities ? generateSimulatedRegions(scanType) : [];
           const conditions = generateConditions(scanType, hasAbnormalities);
           
-          const status: FindingStatus = hasAbnormalities ? 'Abnormal' : 'Normal';
-          const overallConfidence = 65 + Math.floor(Math.random() * 30);
+          // Generate differential diagnoses for uncertain cases
+          const differentialDiagnoses = isUncertain 
+            ? generateDifferentialDiagnoses(scanType) 
+            : undefined;
           
-          const urgencyLevel = hasAbnormalities 
-            ? (regions.some(r => r.severity === 'high') ? 'high' : 'medium')
-            : 'low';
+          // Lower confidence for uncertain cases
+          const overallConfidence = isUncertain 
+            ? 25 + Math.floor(Math.random() * 20) // 25-45% for uncertain
+            : 65 + Math.floor(Math.random() * 30); // 65-95% for confident
+          
+          const urgencyLevel = isUncertain 
+            ? 'medium' // Always medium for uncertain - needs review
+            : hasAbnormalities 
+              ? (regions.some(r => r.severity === 'high') ? 'high' : 'medium')
+              : 'low';
 
-          const recommendation = urgencyLevel === 'high'
-            ? 'Urgent attention advised - immediate physician review recommended'
-            : urgencyLevel === 'medium'
-            ? 'Doctor review recommended - findings require clinical correlation'
-            : 'Routine review - no immediate concerns identified';
+          const recommendation = isUncertain
+            ? 'Diagnosis uncertain - immediate physician review required for differential diagnosis evaluation'
+            : urgencyLevel === 'high'
+              ? 'Urgent attention advised - immediate physician review recommended'
+              : urgencyLevel === 'medium'
+                ? 'Doctor review recommended - findings require clinical correlation'
+                : 'Routine review - no immediate concerns identified';
 
           const analysis: AnalysisResult = {
             scanType,
@@ -168,6 +333,8 @@ export function useImageAnalysis() {
             urgencyLevel,
             recommendation,
             analysisTimestamp: new Date(),
+            isUncertain,
+            differentialDiagnoses,
           };
 
           setResult(analysis);

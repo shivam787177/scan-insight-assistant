@@ -1,13 +1,15 @@
-import { AnalysisResult } from '@/types/medical';
+import { AnalysisResult, DifferentialDiagnosis } from '@/types/medical';
 import { 
   Activity, 
   AlertTriangle, 
   CheckCircle, 
   XCircle,
+  HelpCircle,
   Gauge,
   MapPin,
   Stethoscope,
-  Clock
+  Clock,
+  FileQuestion
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +39,38 @@ function ConfidenceBar({ value, label }: { value: number; label: string }) {
           )}
           style={{ width: `${value}%` }}
         />
+      </div>
+    </div>
+  );
+}
+
+function DifferentialDiagnosisCard({ diagnosis, rank }: { diagnosis: DifferentialDiagnosis; rank: number }) {
+  return (
+    <div className="p-4 rounded-lg bg-secondary border border-border">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-warning/20 text-warning text-xs font-bold flex items-center justify-center">
+            {rank}
+          </span>
+          <p className="text-sm font-medium text-foreground">{diagnosis.name}</p>
+        </div>
+        <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
+          {diagnosis.confidence}% possible
+        </Badge>
+      </div>
+      
+      <div className="mb-3">
+        <ConfidenceBar value={diagnosis.confidence} label="Likelihood" />
+      </div>
+      
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground font-medium mb-2">Supporting Evidence:</p>
+        {diagnosis.evidence.map((evidence, i) => (
+          <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+            <span className="text-primary mt-0.5">•</span>
+            <span>{evidence}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -117,23 +151,51 @@ export function AnalysisPanel({ analysis, isAnalyzing }: AnalysisPanelProps) {
 
         <div className={cn(
           "p-4 rounded-lg border flex items-center gap-3",
-          analysis.status === 'Normal' ? "status-normal" : "status-abnormal"
+          analysis.status === 'Normal' && "status-normal",
+          analysis.status === 'Abnormal' && "status-abnormal",
+          analysis.status === 'Uncertain' && "status-warning"
         )}>
           {analysis.status === 'Normal' ? (
             <CheckCircle className="w-6 h-6" />
-          ) : (
+          ) : analysis.status === 'Abnormal' ? (
             <XCircle className="w-6 h-6" />
+          ) : (
+            <HelpCircle className="w-6 h-6" />
           )}
           <div>
-            <p className="font-medium">{analysis.status}</p>
+            <p className="font-medium">
+              {analysis.status === 'Uncertain' ? 'Diagnosis Uncertain' : analysis.status}
+            </p>
             <p className="text-xs opacity-80">
               {analysis.status === 'Normal' 
                 ? 'No significant abnormalities detected'
-                : 'Abnormalities detected - review recommended'}
+                : analysis.status === 'Abnormal'
+                  ? 'Abnormalities detected - review recommended'
+                  : 'Unable to determine definitive diagnosis - see differential diagnoses below'}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Differential Diagnoses for Uncertain Cases */}
+      {analysis.isUncertain && analysis.differentialDiagnoses && (
+        <div className="medical-card border-warning/50">
+          <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+            <FileQuestion className="w-4 h-4 text-warning" />
+            Differential Diagnoses (Top 3 Possibilities)
+          </h3>
+          <div className="space-y-4">
+            {analysis.differentialDiagnoses.map((diagnosis, i) => (
+              <DifferentialDiagnosisCard key={i} diagnosis={diagnosis} rank={i + 1} />
+            ))}
+          </div>
+          <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/30">
+            <p className="text-xs text-warning font-medium">
+              ⚠️ AI confidence is too low for definitive diagnosis. Clinical correlation and additional imaging/tests strongly recommended.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Conditions */}
       {analysis.suspectedConditions.length > 0 && (
