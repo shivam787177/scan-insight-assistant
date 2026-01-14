@@ -2,7 +2,13 @@ export type ScanType = 'X-ray' | 'MRI' | 'CT' | 'Ultrasound' | 'Unknown';
 
 export type ImageQuality = 'Good' | 'Moderate' | 'Poor';
 
-export type FindingStatus = 'Normal' | 'Abnormal';
+export type FindingStatus = 'Normal' | 'Abnormal' | 'Uncertain';
+
+export interface DifferentialDiagnosis {
+  name: string;
+  confidence: number;
+  evidence: string[];
+}
 
 export type UrgencyLevel = 'low' | 'medium' | 'high';
 
@@ -31,6 +37,9 @@ export interface AnalysisResult {
   urgencyLevel: UrgencyLevel;
   recommendation: string;
   analysisTimestamp: Date;
+  // For uncertain diagnoses
+  isUncertain: boolean;
+  differentialDiagnoses?: DifferentialDiagnosis[];
 }
 
 export interface MedicalReport {
