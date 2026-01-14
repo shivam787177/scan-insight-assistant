@@ -281,6 +281,29 @@ export function useImageAnalysis() {
           const scanType = detectScanType(imageData);
           const imageQuality = assessImageQuality(imageData);
           
+          // FAIL CONDITION: Poor image quality - likely photo of screen/film
+          if (imageQuality === 'Poor') {
+            const analysis: AnalysisResult = {
+              scanType,
+              imageQuality,
+              status: 'Uncertain',
+              suspectedConditions: [],
+              highlightedRegions: [],
+              overallConfidence: 0,
+              urgencyLevel: 'medium',
+              recommendation: 'Unable to perform reliable analysis due to image quality limitations',
+              analysisTimestamp: new Date(),
+              isUncertain: true,
+              isPoorQualityFailure: true,
+              differentialDiagnoses: undefined,
+            };
+
+            setResult(analysis);
+            setIsAnalyzing(false);
+            resolve(analysis);
+            return;
+          }
+          
           // Determine finding status: 40% normal, 35% abnormal (confident), 25% uncertain
           const randomValue = Math.random();
           let status: FindingStatus;
@@ -334,6 +357,7 @@ export function useImageAnalysis() {
             recommendation,
             analysisTimestamp: new Date(),
             isUncertain,
+            isPoorQualityFailure: false,
             differentialDiagnoses,
           };
 

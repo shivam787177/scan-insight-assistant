@@ -39,6 +39,7 @@ export interface AnalysisResult {
   analysisTimestamp: Date;
   // For uncertain diagnoses
   isUncertain: boolean;
+  isPoorQualityFailure: boolean;
   differentialDiagnoses?: DifferentialDiagnosis[];
 }
 
