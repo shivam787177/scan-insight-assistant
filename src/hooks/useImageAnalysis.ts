@@ -1,253 +1,23 @@
 import { useState, useCallback } from 'react';
-import { AnalysisResult, ScanType, ImageQuality, FindingStatus, HighlightedRegion, DifferentialDiagnosis } from '@/types/medical';
+import { AnalysisResult } from '@/types/medical';
+import { supabase } from '@/integrations/supabase/client';
 
-// Simulated AI analysis - in production, this would use actual ML models
-// For a real implementation, you would integrate with TensorFlow.js or ONNX models
-
-function detectScanType(imageData: ImageData): ScanType {
-  // Simulated detection based on image characteristics
-  // Real implementation would use a trained classification model
-  const avgBrightness = calculateAverageBrightness(imageData);
-  const contrastLevel = calculateContrast(imageData);
-  
-  if (avgBrightness > 180 && contrastLevel > 0.6) return 'X-ray';
-  if (avgBrightness < 100 && contrastLevel > 0.7) return 'MRI';
-  if (avgBrightness > 120 && avgBrightness < 180) return 'CT';
-  if (contrastLevel < 0.4) return 'Ultrasound';
-  return 'X-ray'; // Default
-}
-
-function calculateAverageBrightness(imageData: ImageData): number {
-  let total = 0;
-  for (let i = 0; i < imageData.data.length; i += 4) {
-    total += (imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2]) / 3;
-  }
-  return total / (imageData.data.length / 4);
-}
-
-function calculateContrast(imageData: ImageData): number {
-  let min = 255, max = 0;
-  for (let i = 0; i < imageData.data.length; i += 4) {
-    const brightness = (imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2]) / 3;
-    min = Math.min(min, brightness);
-    max = Math.max(max, brightness);
-  }
-  return (max - min) / 255;
-}
-
-function assessImageQuality(imageData: ImageData): ImageQuality {
-  const contrast = calculateContrast(imageData);
-  if (contrast > 0.5) return 'Good';
-  if (contrast > 0.3) return 'Moderate';
-  return 'Poor';
-}
-
-function generateSimulatedRegions(scanType: ScanType): HighlightedRegion[] {
-  // Simulated region detection - real implementation would use segmentation models
-  const regions: HighlightedRegion[] = [];
-  
-  // Simulate finding 0-3 regions of interest
-  const numRegions = Math.floor(Math.random() * 4);
-  
-  const possibleLocations: Record<ScanType, string[]> = {
-    'X-ray': ['Left Lung Upper Lobe', 'Right Lung Lower Lobe', 'Cardiac Silhouette', 'Mediastinum'],
-    'MRI': ['Frontal Cortex', 'Temporal Lobe', 'Cerebellum', 'Brainstem'],
-    'CT': ['Liver Segment', 'Kidney Region', 'Spleen Area', 'Pancreatic Region'],
-    'Ultrasound': ['Gallbladder', 'Right Kidney', 'Left Kidney', 'Bladder'],
-    'Unknown': ['Region A', 'Region B'],
-  };
-
-  const locations = possibleLocations[scanType] || possibleLocations['Unknown'];
-
-  for (let i = 0; i < numRegions; i++) {
-    regions.push({
-      id: `region-${i}`,
-      location: locations[i % locations.length],
-      description: 'Area of interest detected by AI analysis',
-      x: 20 + Math.random() * 40,
-      y: 20 + Math.random() * 40,
-      width: 15 + Math.random() * 20,
-      height: 15 + Math.random() * 20,
-      severity: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as 'low' | 'medium' | 'high',
-    });
-  }
-
-  return regions;
-}
-
-function generateConditions(scanType: ScanType, hasAbnormalities: boolean) {
-  if (!hasAbnormalities) return [];
-
-  const conditionsByType: Record<ScanType, Array<{ name: string; description: string }>> = {
-    'X-ray': [
-      { name: 'Pulmonary Nodule', description: 'Small rounded opacity detected in lung field' },
-      { name: 'Cardiomegaly', description: 'Cardiac silhouette appears enlarged' },
-      { name: 'Pleural Effusion', description: 'Fluid accumulation in pleural space suspected' },
-    ],
-    'MRI': [
-      { name: 'White Matter Lesion', description: 'Hyperintense focus in white matter region' },
-      { name: 'Mass Effect', description: 'Displacement of adjacent structures observed' },
-    ],
-    'CT': [
-      { name: 'Hepatic Lesion', description: 'Focal abnormality in liver parenchyma' },
-      { name: 'Lymphadenopathy', description: 'Enlarged lymph nodes detected' },
-    ],
-    'Ultrasound': [
-      { name: 'Cystic Lesion', description: 'Anechoic structure with posterior enhancement' },
-      { name: 'Calcification', description: 'Echogenic focus with acoustic shadowing' },
-    ],
-    'Unknown': [
-      { name: 'Abnormal Finding', description: 'Pattern deviation from normal detected' },
-    ],
-  };
-
-  const conditions = conditionsByType[scanType] || conditionsByType['Unknown'];
-  const numConditions = 1 + Math.floor(Math.random() * 2);
-  
-  return conditions.slice(0, numConditions).map(c => ({
-    ...c,
-    confidence: 45 + Math.floor(Math.random() * 50),
-  }));
-}
-
-function generateDifferentialDiagnoses(scanType: ScanType): DifferentialDiagnosis[] {
-  const differentialsByType: Record<ScanType, DifferentialDiagnosis[]> = {
-    'X-ray': [
-      {
-        name: 'Pneumonia',
-        confidence: 35 + Math.floor(Math.random() * 25),
-        evidence: [
-          'Patchy opacification in lung fields',
-          'Air bronchograms possibly present',
-          'Consolidation pattern observed'
-        ]
-      },
-      {
-        name: 'Pulmonary Fibrosis',
-        confidence: 25 + Math.floor(Math.random() * 20),
-        evidence: [
-          'Reticular pattern in lower lung zones',
-          'Reduced lung volume',
-          'Honeycombing appearance uncertain'
-        ]
-      },
-      {
-        name: 'Atelectasis',
-        confidence: 20 + Math.floor(Math.random() * 20),
-        evidence: [
-          'Linear opacity suggesting collapsed segment',
-          'Shift of adjacent structures',
-          'Volume loss in affected region'
-        ]
-      }
-    ],
-    'MRI': [
-      {
-        name: 'Demyelinating Disease',
-        confidence: 35 + Math.floor(Math.random() * 25),
-        evidence: [
-          'Periventricular hyperintensities',
-          'Ovoid lesions perpendicular to ventricles',
-          'Multiple white matter foci'
-        ]
-      },
-      {
-        name: 'Small Vessel Disease',
-        confidence: 30 + Math.floor(Math.random() * 20),
-        evidence: [
-          'Subcortical white matter changes',
-          'Lacunar infarcts possible',
-          'Age-related changes pattern'
-        ]
-      },
-      {
-        name: 'Low-Grade Glioma',
-        confidence: 20 + Math.floor(Math.random() * 15),
-        evidence: [
-          'Subtle signal abnormality',
-          'No definite mass effect',
-          'Further imaging recommended'
-        ]
-      }
-    ],
-    'CT': [
-      {
-        name: 'Hepatic Hemangioma',
-        confidence: 35 + Math.floor(Math.random() * 25),
-        evidence: [
-          'Well-defined hypodense lesion',
-          'Peripheral nodular enhancement pattern',
-          'No aggressive features'
-        ]
-      },
-      {
-        name: 'Focal Nodular Hyperplasia',
-        confidence: 28 + Math.floor(Math.random() * 20),
-        evidence: [
-          'Central scar appearance',
-          'Arterial phase enhancement',
-          'Isodense on delayed images'
-        ]
-      },
-      {
-        name: 'Metastatic Disease',
-        confidence: 22 + Math.floor(Math.random() * 18),
-        evidence: [
-          'Multiple lesions of varying size',
-          'Clinical correlation required',
-          'Primary source unknown'
-        ]
-      }
-    ],
-    'Ultrasound': [
-      {
-        name: 'Simple Cyst',
-        confidence: 40 + Math.floor(Math.random() * 25),
-        evidence: [
-          'Anechoic content',
-          'Posterior acoustic enhancement',
-          'Smooth thin wall'
-        ]
-      },
-      {
-        name: 'Complex Cyst',
-        confidence: 30 + Math.floor(Math.random() * 20),
-        evidence: [
-          'Internal septations',
-          'Debris or hemorrhage possible',
-          'Follow-up recommended'
-        ]
-      },
-      {
-        name: 'Solid Mass',
-        confidence: 20 + Math.floor(Math.random() * 15),
-        evidence: [
-          'Hypoechoic lesion',
-          'Internal vascularity uncertain',
-          'Tissue characterization limited'
-        ]
-      }
-    ],
-    'Unknown': [
-      {
-        name: 'Pathology A',
-        confidence: 30,
-        evidence: ['Abnormal pattern detected', 'Further investigation needed']
-      },
-      {
-        name: 'Pathology B',
-        confidence: 25,
-        evidence: ['Secondary findings present', 'Clinical correlation advised']
-      },
-      {
-        name: 'Pathology C',
-        confidence: 20,
-        evidence: ['Non-specific changes', 'Cannot exclude significance']
-      }
-    ]
-  };
-
-  return differentialsByType[scanType] || differentialsByType['Unknown'];
+function fileToBase64(imageUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('No canvas context')); return; }
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = imageUrl;
+  });
 }
 
 export function useImageAnalysis() {
@@ -256,134 +26,46 @@ export function useImageAnalysis() {
 
   const analyzeImage = useCallback(async (imageUrl: string): Promise<AnalysisResult> => {
     setIsAnalyzing(true);
-    
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      img.onload = () => {
-        // Create canvas to get image data
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        
-        if (!ctx) {
-          setIsAnalyzing(false);
-          throw new Error('Could not get canvas context');
-        }
 
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    try {
+      const imageBase64 = await fileToBase64(imageUrl);
 
-        // Simulate processing time
-        setTimeout(() => {
-          const scanType = detectScanType(imageData);
-          const imageQuality = assessImageQuality(imageData);
-          
-          // FAIL CONDITION: Poor image quality - likely photo of screen/film
-          if (imageQuality === 'Poor') {
-            const analysis: AnalysisResult = {
-              scanType,
-              imageQuality,
-              status: 'Uncertain',
-              suspectedConditions: [],
-              highlightedRegions: [],
-              overallConfidence: 0,
-              urgencyLevel: 'medium',
-              recommendation: 'Unable to perform reliable analysis due to image quality limitations',
-              analysisTimestamp: new Date(),
-              isUncertain: true,
-              isPoorQualityFailure: true,
-              differentialDiagnoses: undefined,
-            };
+      const { data, error } = await supabase.functions.invoke('analyze-scan', {
+        body: { imageBase64 },
+      });
 
-            setResult(analysis);
-            setIsAnalyzing(false);
-            resolve(analysis);
-            return;
-          }
-          
-          // Determine finding status: 40% normal, 35% abnormal (confident), 25% uncertain
-          const randomValue = Math.random();
-          let status: FindingStatus;
-          let isUncertain = false;
-          
-          if (randomValue < 0.4) {
-            status = 'Normal';
-          } else if (randomValue < 0.75) {
-            status = 'Abnormal';
-          } else {
-            status = 'Uncertain';
-            isUncertain = true;
-          }
-          
-          const hasAbnormalities = status === 'Abnormal';
-          const regions = hasAbnormalities ? generateSimulatedRegions(scanType) : [];
-          const conditions = generateConditions(scanType, hasAbnormalities);
-          
-          // Generate differential diagnoses for uncertain cases
-          const differentialDiagnoses = isUncertain 
-            ? generateDifferentialDiagnoses(scanType) 
-            : undefined;
-          
-          // Lower confidence for uncertain cases
-          const overallConfidence = isUncertain 
-            ? 25 + Math.floor(Math.random() * 20) // 25-45% for uncertain
-            : 65 + Math.floor(Math.random() * 30); // 65-95% for confident
-          
-          const urgencyLevel = isUncertain 
-            ? 'medium' // Always medium for uncertain - needs review
-            : hasAbnormalities 
-              ? (regions.some(r => r.severity === 'high') ? 'high' : 'medium')
-              : 'low';
+      if (error) throw error;
 
-          const recommendation = isUncertain
-            ? 'Diagnosis uncertain - immediate physician review required for differential diagnosis evaluation'
-            : urgencyLevel === 'high'
-              ? 'Urgent attention advised - immediate physician review recommended'
-              : urgencyLevel === 'medium'
-                ? 'Doctor review recommended - findings require clinical correlation'
-                : 'Routine review - no immediate concerns identified';
-
-          const analysis: AnalysisResult = {
-            scanType,
-            imageQuality,
-            status,
-            suspectedConditions: conditions,
-            highlightedRegions: regions,
-            overallConfidence,
-            urgencyLevel,
-            recommendation,
-            analysisTimestamp: new Date(),
-            isUncertain,
-            isPoorQualityFailure: false,
-            differentialDiagnoses,
-          };
-
-          setResult(analysis);
-          setIsAnalyzing(false);
-          resolve(analysis);
-        }, 2500); // Simulate 2.5s analysis time
+      const analysis: AnalysisResult = {
+        scanType: data.scanType || 'Unknown',
+        imageQuality: data.imageQuality || 'Moderate',
+        status: data.status || 'Uncertain',
+        suspectedConditions: data.suspectedConditions || [],
+        highlightedRegions: (data.highlightedRegions || []).map((r: any, i: number) => ({
+          ...r,
+          id: r.id || `region-${i}`,
+        })),
+        overallConfidence: data.overallConfidence ?? 0,
+        urgencyLevel: data.urgencyLevel || 'medium',
+        recommendation: data.recommendation || 'Please consult a physician.',
+        analysisTimestamp: new Date(),
+        isUncertain: data.isUncertain ?? data.status === 'Uncertain',
+        isPoorQualityFailure: data.isPoorQualityFailure ?? false,
+        differentialDiagnoses: data.differentialDiagnoses || undefined,
       };
 
-      img.onerror = () => {
-        setIsAnalyzing(false);
-        throw new Error('Failed to load image');
-      };
-
-      img.src = imageUrl;
-    });
+      setResult(analysis);
+      setIsAnalyzing(false);
+      return analysis;
+    } catch (err) {
+      setIsAnalyzing(false);
+      throw err;
+    }
   }, []);
 
   const clearAnalysis = useCallback(() => {
     setResult(null);
   }, []);
 
-  return {
-    isAnalyzing,
-    result,
-    analyzeImage,
-    clearAnalysis,
-  };
+  return { isAnalyzing, result, analyzeImage, clearAnalysis };
 }
