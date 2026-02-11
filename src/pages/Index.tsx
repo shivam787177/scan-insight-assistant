@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Play, RotateCcw, Eye, Download, FileText } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showHighlights, setShowHighlights] = useState(true);
+  const { toast } = useToast();
   
   const { isAnalyzing, result, analyzeImage, clearAnalysis } = useImageAnalysis();
 
@@ -30,9 +32,17 @@ const Index = () => {
 
   const handleAnalyze = useCallback(async () => {
     if (imagePreview) {
-      await analyzeImage(imagePreview);
+      try {
+        await analyzeImage(imagePreview);
+      } catch (err: any) {
+        toast({
+          title: "Analysis Failed",
+          description: err?.message || "Could not analyze the scan. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [imagePreview, analyzeImage]);
+  }, [imagePreview, analyzeImage, toast]);
 
   const handleExportReport = useCallback(() => {
     if (!result) return;
