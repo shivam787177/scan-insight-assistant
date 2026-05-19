@@ -88,6 +88,7 @@ Rules:
               ],
             },
           ],
+          response_format: { type: "json_object" },
         }),
       }
     );
@@ -111,10 +112,21 @@ Rules:
     }
 
     const aiResult = await response.json();
+    console.log("AI raw result preview:", JSON.stringify(aiResult).slice(0, 800));
     let content = aiResult.choices?.[0]?.message?.content || "";
+    const finishReason = aiResult.choices?.[0]?.finish_reason;
 
     // Strip markdown code fences if present
     content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+
+    if (!content) {
+      console.error("Empty AI content. Finish reason:", finishReason);
+      throw new Error(
+        finishReason === "content_filter"
+          ? "The image was blocked by safety filters. Please try a different scan."
+          : "AI returned an empty response. Please try a clearer medical scan image."
+      );
+    }
 
     let analysis;
     try {
